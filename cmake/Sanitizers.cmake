@@ -1,0 +1,28 @@
+function(enable_sanitizers target_name)
+  if (NOT ENABLE_SANITIZERS)
+    return()
+  endif()
+
+  if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+    target_compile_options(${target_name} PRIVATE -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer)
+    target_link_options(${target_name} PRIVATE -fsanitize=address -fsanitize=undefined)
+    message("Enabling Address Sanitizer for target ${target_name}")
+  else()
+    message(WARNING "Sanitizers are not supported for the compiler ${CMAKE_CXX_COMPILER_ID}. Skipping sanitizer configuration for target ${target_name}.")
+  endif()
+endfunction()
+
+
+function(enable_thread_sanitizer target_name)
+  if (NOT ENABLE_SANITIZERS)
+    return()
+  endif()
+
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+    target_compile_options(${target_name} PRIVATE -fsanitize=thread -fno-omit-frame-pointer)
+    target_link_options(${target_name} PRIVATE -fsanitize=thread)
+    message("Enabling Thread Sanitizer for target ${target_name}")
+  else()
+    message(WARNING "Thread Sanitizer is not supported for the compiler ${CMAKE_CXX_COMPILER_ID}. Skipping sanitizer configuration for target ${target_name}.")
+  endif()
+endfunction()
