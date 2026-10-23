@@ -17,7 +17,7 @@ Przed szkoleniem należy zainstalować:
         ```
         cmake --version
         ```
-    * vcpkg
+    * vcpkg - opcja
       * instalacja - https://learn.microsoft.com/en-us/vcpkg/get_started/get-started?pivots=shell-bash
         * zklonować repozytorium vcpkg
           ```
