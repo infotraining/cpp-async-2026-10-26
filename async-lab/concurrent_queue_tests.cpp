@@ -169,7 +169,7 @@ void save_to_file(const std::string& filename)
     synced_cout() << "Saving to file: " << filename
               << " in thread#" << std::this_thread::get_id() << std::endl;
 
-    std::this_thread::sleep_for(3s);
+    std::this_thread::sleep_for(250ms);
 
     synced_cout() << "File saved: " << filename << std::endl;
 }
@@ -205,7 +205,7 @@ int calculate_square(int x)
     synced_cout() << "Starting calculation for " << x << " in " << std::this_thread::get_id() << std::endl;
 
     std::random_device rd;
-    std::uniform_int_distribution<> distr(100, 5000);
+    std::uniform_int_distribution<> distr(100, 500);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(distr(rd)));
 
