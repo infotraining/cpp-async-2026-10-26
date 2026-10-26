@@ -36,6 +36,7 @@ add_subdirectory(dependencies)
 
 enable_testing()
 
+add_subdirectory(async-lab)
 add_subdirectory(coroutines-basics)
 add_subdirectory(coroutines-capy)
 add_subdirectory(senders-receivers)
