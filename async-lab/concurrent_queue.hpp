@@ -6,6 +6,8 @@
 #include <queue>
 #include <thread>
 #include <expected>
+#include <functional>
+#include <future>
 
 namespace AsyncLab
 {
@@ -90,6 +92,56 @@ namespace AsyncLab
             q_.pop();
             
             return val;
+        }
+    };
+
+    class ThreadPool
+    {
+        using WorkToDo = std::function<void()>;
+
+        ConcurrentQueue<WorkToDo> tasks_;
+        std::vector<std::thread> threads_;
+
+    public:
+        ThreadPool(size_t size = std::thread::hardware_concurrency())
+        {
+            for(size_t i = 0; i < size; ++i)
+            {
+                threads_.emplace_back([this] { run(); });
+            }
+        }
+
+        ~ThreadPool()
+        {
+            tasks_.close();
+
+            for (auto& thd : threads_)
+                thd.join();
+        }
+
+        template <typename TFunction>
+        auto submit(TFunction func) -> std::future<decltype(func())>
+        {   
+            using TResult = decltype(func()); 
+            auto pt = std::make_shared<std::packaged_task<TResult()>>(func);
+            std::future<TResult> f = pt->get_future();
+
+            tasks_.push([pt] { (*pt)(); });
+
+            return f;
+        }
+    private:
+        void run()
+        {
+            while (true)
+            {
+                std::optional<WorkToDo> task = tasks_.pop();
+
+                if (not task)
+                    return;
+
+                (*task)(); // execution of task in worker thread
+            }
         }
     };
 } // namespace AsyncLab
