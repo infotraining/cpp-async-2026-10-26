@@ -1,4 +1,5 @@
 ﻿#include "concurrent_queue.hpp"
+#include "task.hpp"
 
 #include <algorithm>
 #include <catch2/catch_test_macros.hpp>
@@ -15,6 +16,7 @@
 #include <syncstream>
 #include <random>
 #include <future>
+#include <stdexec/execution.hpp>
 
 using namespace AsyncLab;
 using namespace std::literals;
@@ -259,4 +261,30 @@ TEST_CASE("ThreadPool + std::future")
             synced_cout() << e.what() << '\n';
         }
     }
+}
+
+Task<int> calculate_on_pool(ThreadPool& thd_pool)
+{
+    synced_cout() << "Task started on thread " << std::this_thread::get_id() << "\n";
+
+    int result_1 = co_await thd_pool.async_submit([] { return calculate_square(13); });
+
+    synced_cout() << "Task received result: " << result_1 << "on thread " << std::this_thread::get_id() << "\n";
+
+    int result_2 = co_await thd_pool.async_submit([] { return calculate_square(7); });
+
+    synced_cout() << "Task received result: " << result_2 << "on thread " << std::this_thread::get_id() << "\n";
+
+    co_return result_1 * result_2;
+}
+
+TEST_CASE("ThreadPool - asynchronous tasks")
+{
+    ThreadPool thd_pool{8};
+
+    Task<int> tsk = calculate_on_pool(thd_pool);
+
+    auto [result] = stdexec::sync_wait(std::move(tsk)).value();
+
+    REQUIRE(result == 13 * 13 * 7 * 7);
 }

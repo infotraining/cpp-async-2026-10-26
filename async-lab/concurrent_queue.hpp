@@ -1,18 +1,24 @@
 #ifndef CONCURRENT_QUEUE_HPP
 #define CONCURRENT_QUEUE_HPP
 
+#include <cassert>
 #include <condition_variable>
-#include <optional>
-#include <queue>
-#include <thread>
+#include <coroutine>
+#include <cstddef>
 #include <expected>
 #include <functional>
 #include <future>
+#include <mutex>
+#include <optional>
+#include <queue>
+#include <thread>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
 namespace AsyncLab
 {
-    enum class ConqueueStatus 
-    {
+    enum class ConqueueStatus {
         Empty,
         Closed,
         Busy
@@ -71,7 +77,7 @@ namespace AsyncLab
 
             T val = q_.front();
             q_.pop();
-            
+
             return val;
         }
 
@@ -90,7 +96,7 @@ namespace AsyncLab
 
             T val = q_.front();
             q_.pop();
-            
+
             return val;
         }
     };
@@ -105,7 +111,7 @@ namespace AsyncLab
     public:
         ThreadPool(size_t size = std::thread::hardware_concurrency())
         {
-            for(size_t i = 0; i < size; ++i)
+            for (size_t i = 0; i < size; ++i)
             {
                 threads_.emplace_back([this] { run(); });
             }
@@ -121,8 +127,8 @@ namespace AsyncLab
 
         template <typename TFunction>
         auto submit(TFunction func) -> std::future<decltype(func())>
-        {   
-            using TResult = decltype(func()); 
+        {
+            using TResult = decltype(func());
             auto pt = std::make_shared<std::packaged_task<TResult()>>(func);
             std::future<TResult> f = pt->get_future();
 
@@ -130,6 +136,41 @@ namespace AsyncLab
 
             return f;
         }
+
+        template <typename TFunction>
+        auto async_submit(TFunction func)
+        {
+            using TResult = std::invoke_result_t<TFunction>;
+
+            struct SubmitAwaiter
+            {
+                TFunction func_;
+                ThreadPool& thd_pool_;
+                std::optional<TResult> result_;
+
+                SubmitAwaiter(TFunction func, ThreadPool& thd_pool)
+                    : func_(std::move(func)), thd_pool_(thd_pool) {}
+
+                bool await_ready() const noexcept { return false; }
+
+                void await_suspend(std::coroutine_handle<> awaiting_coro)
+                {
+                    auto task_wrapper = [this, awaiting_coro] {
+                        result_ = func_();
+                        awaiting_coro.resume();
+                    };
+
+                    [[maybe_unused]] auto res = thd_pool_.tasks_.push(std::move(task_wrapper));
+                    assert(res);
+                }
+
+                decltype(auto) await_resume() { return *result_; }
+            };
+
+            return SubmitAwaiter{std::move(func), *this};
+        }
+
+
     private:
         void run()
         {
