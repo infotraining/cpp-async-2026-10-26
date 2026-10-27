@@ -8,11 +8,38 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <type_traits>
 
+template <typename T>
 class TaskResumer
 {
 public:
-    struct promise_type
+    template <typename T>
+    struct TaskResultBase
+    {
+        std::optional<T> value_;
+
+        template <typename TValue>
+        void return_value(TValue&& value)
+        {
+            value_ = std::forward<TValue>(value);
+        }
+
+		T&& result()
+        {
+            return std::move(*value_);
+        }
+    };
+
+	template <>
+	struct TaskResultBase<void>
+	{
+		void return_void() 
+		{
+		}
+	};
+
+    struct promise_type : TaskResultBase<T>
     {
         TaskResumer get_return_object()
         {
@@ -23,13 +50,12 @@ public:
 
         std::suspend_always final_suspend() noexcept { return {}; }
 
-        void return_void() { }
-
         void unhandled_exception()
         {
             std::terminate();
         }
     };
+
     explicit TaskResumer(std::coroutine_handle<promise_type> h)
         : handle_{h}
     { }
@@ -52,11 +78,17 @@ public:
         return true;
     }
 
+	T result() 
+		requires (!std::is_void_v<T>)
+	{
+		return handle_.promise().result();
+	}
+
 private:
     std::coroutine_handle<promise_type> handle_;
 };
 
-TaskResumer simple_coroutine(std::string name)
+TaskResumer<void> simple_coroutine(std::string name)
 {
     std::cout << "Starting " << name << "..." << std::endl;
 
@@ -88,72 +120,72 @@ TEST_CASE("simple coroutine")
     REQUIRE(true);
 }
 
-namespace ver_2
-{
+// namespace ver_2
+// {
 
-    template <typename T>
-    class TaskResumer
-    {
-    public:
-        struct promise_type
-        {
-            std::optional<T> value_;
+//     template <typename T>
+//     class TaskResumer
+//     {
+//     public:
+//         struct promise_type
+//         {
+//             std::optional<T> value_;
 
-            TaskResumer get_return_object()
-            {
-                return TaskResumer(std::coroutine_handle<promise_type>::from_promise(*this));
-            }
+//             TaskResumer get_return_object()
+//             {
+//                 return TaskResumer(std::coroutine_handle<promise_type>::from_promise(*this));
+//             }
 
-            std::suspend_always initial_suspend() { return {}; }
+//             std::suspend_always initial_suspend() { return {}; }
 
-            std::suspend_always final_suspend() noexcept { return {}; }
+//             std::suspend_always final_suspend() noexcept { return {}; }
 
-            template <typename TValue>
-            void return_value(TValue&& value)
-            {
-                value_ = std::forward<TValue>(value);
-            }
+//             template <typename TValue>
+//             void return_value(TValue&& value)
+//             {
+//                 value_ = std::forward<TValue>(value);
+//             }
 
-            void unhandled_exception()
-            {
-                std::terminate();
-            }
-        };
+//             void unhandled_exception()
+//             {
+//                 std::terminate();
+//             }
+//         };
 
-        explicit TaskResumer(std::coroutine_handle<promise_type> h)
-            : handle_{h}
-        { }
+//         explicit TaskResumer(std::coroutine_handle<promise_type> h)
+//             : handle_{h}
+//         { }
 
-        TaskResumer(const TaskResumer&) = delete;
-        TaskResumer& operator=(const TaskResumer&) = delete;
+//         TaskResumer(const TaskResumer&) = delete;
+//         TaskResumer& operator=(const TaskResumer&) = delete;
 
-        ~TaskResumer()
-        {
-            if (handle_)
-                handle_.destroy();
-        }
+//         ~TaskResumer()
+//         {
+//             if (handle_)
+//                 handle_.destroy();
+//         }
 
-        bool resume()
-        {
-            if (!handle_ || handle_.done())
-                return false;
+//         bool resume()
+//         {
+//             if (!handle_ || handle_.done())
+//                 return false;
 
-            handle_.resume(); // or handle_();
-            return true;
-        }
+//             handle_.resume(); // or handle_();
+//             return true;
+//         }
 
-        T&& result()
-        {
-            return std::move(*(handle_.promise().value_));
-        }
+//         T&& result()
+//         {
+//             return std::move(*(handle_.promise().value_));
+//         }
 
-    private:
-        std::coroutine_handle<promise_type> handle_;
-    };
+//     private:
+//         std::coroutine_handle<promise_type> handle_;
+//     };
 
-} // namespace ver_2
+// } // namespace ver_2
 
-ver_2::TaskResumer<int> value_coroutine(std::string name)
+TaskResumer<int> value_coroutine(std::string name)
 {
     std::cout << "Starting " << name << "\n";
 
@@ -172,7 +204,7 @@ ver_2::TaskResumer<int> value_coroutine(std::string name)
 
 TEST_CASE("simple coroutine that returns the value")
 {
-    ver_2::TaskResumer<int> coro_1 = value_coroutine("ValueCoro#1");
+    TaskResumer<int> coro_1 = value_coroutine("ValueCoro#1");
 
     std::cout << "ValueCoro#1 created" << std::endl;
 
