@@ -88,3 +88,38 @@ TEST_CASE("simple coroutine")
 
     REQUIRE(true);
 }
+
+template <typename T>
+class TaskResumer
+{};
+
+TaskResumer<int> value_coroutine(std::string name)
+{
+	std::cout << "Starting " << name << "\n";
+
+    co_await std::suspend_always(); // suspension point
+
+    std::cout << name << " has been resumed!" << "\n";
+
+    co_await std::suspend_always(); // suspension point
+
+    std::cout << name << " has been resumed again!" << "\n";
+
+    std::cout << name << " has finished!" << "\n";
+
+    co_return 42;
+}
+
+TEST_CASE("simple coroutine that returns the value")
+{
+	TaskResumer<int> coro_1 = value_coroutine("ValueCoro#1");
+	
+	std::cout << "ValueCoro#1 created" << std::endl;
+
+	do
+    {
+        std::cout << "Resuming coroutine from main..." << std::endl;
+    } while (coro_1.resume());
+
+	std::cout << "Value from coro#1: " << coro_1.result() << std::endl;
+}
