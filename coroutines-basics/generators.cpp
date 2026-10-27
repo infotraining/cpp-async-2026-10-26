@@ -1,6 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <coroutine>
 #include <iostream>
+#include <list>
+#include <generator>
 
 template <typename T>
 class Generator
@@ -149,10 +151,23 @@ TEST_CASE("Generator")
 
     SECTION("range-based for")
     {
-        for(int item : sequence(1, 10))
+        for (int item : sequence(1, 10))
         {
             std::cout << item << "\n";
         }
+    }
+}
+
+template <typename T1, typename T2>
+auto zip(const T1& rng_1, const T2& rng_2) 
+-> std::generator<std::tuple<std::ranges::range_value_t<T1>, std::ranges::range_value_t<T2>>>
+{
+    auto it1 = rng_1.begin();
+    auto it2 = rng_2.begin();
+
+    for (; it1 != rng_1.end() && it2 != rng_2.end(); ++it1, ++it2)
+    {
+        co_yield std::tuple{*it1, *it2};
     }
 }
 
@@ -165,4 +180,50 @@ TEST_CASE("zip")
     {
         std::cout << "v1: " << v1 << " v2: " << v2 << "\n";
     }
+
+    std::vector<int> indexes = {1, 2, 3};
+    std::list<float> values = {3.14, 2.71, 6.28};
+
+    for (auto [i, v] : zip(indexes, values))
+    {
+        std::cout << "{" << i << ", " << v << "}\n";
+    }
+}
+
+template<typename T>
+struct Tree
+{
+    T value;
+    Tree *left{}, *right{};
+
+    std::generator<const T&> traverse_inorder() const
+    {
+        if (left)
+            co_yield std::ranges::elements_of(left->traverse_inorder());
+
+        co_yield value;
+
+        if (right)
+            co_yield std::ranges::elements_of(right->traverse_inorder());
+    }
+};
+
+TEST_CASE("Tree traversing with genrator")
+{
+    Tree<char> tree[]
+    {
+                                    {'D', tree + 1, tree + 2},
+        //                            │
+        //            ┌───────────────┴────────────────┐
+        //            │                                │
+                    {'B', tree + 3, tree + 4},       {'F', tree + 5, tree + 6},
+        //            │                                │
+        //  ┌─────────┴─────────────┐      ┌───────────┴─────────────┐
+        //  │                       │      │                         │
+        {'A'},                  {'C'}, {'E'},                    {'G'}
+    };
+
+    for (char x : tree->traverse_inorder())
+        std::cout << x << ' ';
+    std::cout << '\n';
 }
