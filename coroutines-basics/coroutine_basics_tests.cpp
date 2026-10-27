@@ -89,11 +89,16 @@ TEST_CASE("simple coroutine")
     REQUIRE(true);
 }
 
+namespace ver_2 
+{
+
 template <typename T>
 class TaskResumer
 {};
 
-TaskResumer<int> value_coroutine(std::string name)
+}
+
+ver_2::TaskResumer<int> value_coroutine(std::string name)
 {
 	std::cout << "Starting " << name << "\n";
 
@@ -110,9 +115,11 @@ TaskResumer<int> value_coroutine(std::string name)
     co_return 42;
 }
 
+
+
 TEST_CASE("simple coroutine that returns the value")
 {
-	TaskResumer<int> coro_1 = value_coroutine("ValueCoro#1");
+	ver_2::TaskResumer<int> coro_1 = value_coroutine("ValueCoro#1");
 	
 	std::cout << "ValueCoro#1 created" << std::endl;
 
