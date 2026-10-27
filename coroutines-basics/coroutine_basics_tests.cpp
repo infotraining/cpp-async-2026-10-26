@@ -202,6 +202,18 @@ TaskResumer<int> value_coroutine(std::string name)
     co_return 42;
 }
 
+// Task<int> coro_1()
+// {
+// 	co_return 42;
+// }
+
+// Task<int> coro_2()
+// {
+// 	int value = co_await coro_1();
+
+// 	co_return value * 2;
+// }
+
 TEST_CASE("simple coroutine that returns the value")
 {
     TaskResumer<int> coro_1 = value_coroutine("ValueCoro#1");
