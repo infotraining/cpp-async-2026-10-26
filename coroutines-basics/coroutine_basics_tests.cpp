@@ -7,38 +7,38 @@
 #include <numeric>
 #include <set>
 #include <string>
-#include <vector>
 #include <type_traits>
+#include <vector>
+
+template <typename T>
+struct TaskResultBase
+{
+    std::optional<T> value_;
+
+    template <typename TValue>
+    void return_value(TValue&& value)
+    {
+        value_ = std::forward<TValue>(value);
+    }
+
+    T result()
+    {
+        return std::move(*value_);
+    }
+};
+
+template <>
+struct TaskResultBase<void>
+{
+    void return_void()
+    {
+    }
+};
 
 template <typename T>
 class TaskResumer
 {
 public:
-    template <typename T>
-    struct TaskResultBase
-    {
-        std::optional<T> value_;
-
-        template <typename TValue>
-        void return_value(TValue&& value)
-        {
-            value_ = std::forward<TValue>(value);
-        }
-
-		T&& result()
-        {
-            return std::move(*value_);
-        }
-    };
-
-	template <>
-	struct TaskResultBase<void>
-	{
-		void return_void() 
-		{
-		}
-	};
-
     struct promise_type : TaskResultBase<T>
     {
         TaskResumer get_return_object()
@@ -78,11 +78,11 @@ public:
         return true;
     }
 
-	T result() 
-		requires (!std::is_void_v<T>)
-	{
-		return handle_.promise().result();
-	}
+    T result()
+        requires(!std::is_void_v<T>)
+    {
+        return handle_.promise().result();
+    }
 
 private:
     std::coroutine_handle<promise_type> handle_;
